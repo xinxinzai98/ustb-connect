@@ -13,11 +13,11 @@
       <button class="nav-item" data-page="settings" aria-label="重连设置"><span data-icon="settings"></span>重连设置</button>
       <button class="nav-item" data-page="diagnostics" aria-label="运行日志"><span data-icon="logs"></span>运行日志</button>
     </nav>
-    <div class="sidebar-bottom"><div class="quiet-status"><i></i><span id="sidebar-mode">模拟模式</span></div><p id="platform-label">正在读取平台…</p><small id="version-label">v1.0.0</small></div>
+    <div class="sidebar-bottom"><div class="quiet-status"><i></i><span id="sidebar-mode">等待连接后台</span></div><p id="platform-label">正在读取平台…</p><small id="version-label">v1.0.0</small></div>
   </aside>
   <main>
-    <header class="topbar"><div class="breadcrumb">北科校园联网 <span>/</span> <b id="page-label">网络状态</b></div><div class="top-actions"><button class="button danger small" data-action="stop-all">停止全部监测</button><span class="mode-pill"><i></i><span id="mode-label">模拟模式</span></span><button class="text-button" id="switch-mode" data-action="switch-mode">连接系统后台<span data-icon="arrow"></span></button></div></header>
-    <div id="mode-banner" class="mode-banner"><span data-icon="flask"></span><div><strong>模拟模式</strong><span>所有状态和用量均为演示数据，不提交真实认证，不修改系统网络。</span></div><span class="banner-end">隔离测试</span></div>
+    <header class="topbar"><div class="breadcrumb">北科校园联网 <span>/</span> <b id="page-label">网络状态</b></div><div class="top-actions"><button class="button danger small" data-action="stop-all">停止全部监测</button><span class="mode-pill"><i></i><span id="mode-label">待连接后台</span></span><button class="text-button" id="switch-mode" data-action="switch-mode">连接系统后台<span data-icon="arrow"></span></button></div></header>
+    <div id="mode-banner" class="mode-banner"><span data-icon="info"></span><div><strong>后台服务未连接</strong><span>请在重连设置安装并连接后台服务，再验证无线网络并启用自动重连。</span></div></div>
     <div id="view" class="content" aria-live="polite"></div>
   </main>
   <dialog id="account-dialog"><form id="account-form">

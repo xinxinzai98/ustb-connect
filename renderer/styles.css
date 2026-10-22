@@ -6,3 +6,5 @@
 .wifi-field{margin-top:20px}.wifi-copy{font-size:12px;color:var(--muted);margin:15px 0;line-height:1.9}#wifi-form .network-detail{display:block;padding:0;border:0;background:none}#wifi-form .detail-row{font-size:11px}#wifi-form .field small{font-size:11px}
 
 .service-alert{margin-left:10px;color:#9a6121;font-weight:550}.mode-banner:has(.service-alert){flex-wrap:wrap}.event-detail{line-height:1.8}.field small,.help-card p,.switch-row p,.account-footnote{font-size:11px}.top-actions{gap:11px}
+
+#switch-mode[hidden]{display:none}

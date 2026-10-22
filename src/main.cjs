@@ -6,6 +6,7 @@ const {DraftStore}=require('./store.cjs');const {dispatch,call,METHODS,stopMonit
 const installer=require('./installer.cjs');
 const {publicError,STATUSES}=require('./model.cjs');
 const {trayInformation}=require('./tray.cjs');
+const {draftData,desktopSnapshot,requireDesktopAction}=require('./desktop-state.cjs');
 
 const preview=process.argv.includes('--preview')||process.env.BKQL_UI_TEST==='1';
 if(preview){
@@ -13,21 +14,21 @@ if(preview){
   fs.mkdirSync(root,{recursive:true,mode:0o700});app.setPath('userData',root);
 }
 const assets=path.join(__dirname,'..','assets');
-let window,tray,engine,store,trayMetrics;let mode='simulation',lastSnapshot=null,quitting=false;let systemConnected=false,serviceSeen=false,systemRunning=null,serviceVersion=null;
+let window,tray,engine,store,trayMetrics;let mode=preview?'simulation':'setup',lastSnapshot=null,quitting=false;let systemConnected=false,serviceSeen=false,systemRunning=null,serviceVersion=null;
 
 const extraMethods=new Set(['loadDemo','setScene','setMode','installationInfo','installBackend','importAccounts','exportDiagnostics','openLogFolder','syncDraft','stopAll']);
-function presentation(snapshot){return {...snapshot,platform:process.platform,arch:process.arch,version:app.getVersion(),statusLabels:STATUSES,preview,
+function presentation(snapshot){return {...desktopSnapshot(snapshot,{mode,connected:systemConnected,preview}),platform:process.platform,arch:process.arch,version:app.getVersion(),statusLabels:STATUSES,preview,
   service:{connected:systemConnected,known:serviceSeen,running:systemRunning,version:serviceVersion,compatible:serviceVersion===app.getVersion(),mode,installed:serviceSeen,kind:process.platform==='win32'?'SYSTEM 开机任务':'macOS LaunchDaemon'},
-  mode,simulationScene:engine.transport.scene||'healthy',...(preview?{ui:{tray:trayMetrics}}:{})};}
+  mode,...(preview?{simulationScene:engine.transport.scene||'healthy',ui:{tray:trayMetrics}}:{})};}
 function publish(snapshot){lastSnapshot=presentation(snapshot);window?.webContents.send('bkql:state',lastSnapshot);return lastSnapshot;}
-function observedService(value){serviceVersion=value.version||'legacy';systemConnected=value.version===app.getVersion();serviceSeen=true;systemRunning=value.running;return value;}
-async function status(){if(mode==='system')return publish(observedService(await call('status')));return publish(engine.snapshot());}
+function observedService(value){serviceVersion=value.version||'legacy';systemConnected=value.version===app.getVersion()&&value.mode!=='simulation';serviceSeen=true;systemRunning=systemConnected?value.running:null;return value;}
+async function status(){if(mode==='system'){try{return publish(observedService(await call('status')));}catch{systemConnected=false;systemRunning=null;return publish(lastSnapshot||engine.snapshot());}}return publish(engine.snapshot());}
 async function stopAll(){
   const includeService=!preview&&(serviceSeen||Boolean(require('./platform.cjs').connectionInfo()));
   const result=await stopMonitoring(engine,{includeService,serviceCall:()=>call('stop',{},undefined,{timeout:10000})});
   if(result.systemState==='stopped')observedService(result.systemSnapshot);
   if(result.systemState==='unconfirmed'){systemConnected=false;systemRunning=null;}
-  const message=!result.ok?'未能确认全部监测已停止。请检查后台服务或使用桌面停止入口。':includeService?'后台自动重连与模拟监测均已停止。':'模拟监测已停止；当前未连接后台服务。';
+  const message=!result.ok?'未能确认全部监测已停止。请检查后台服务或使用桌面停止入口。':preview?'内部测试监测已停止。':includeService?'自动重连监测已停止。':'当前未连接后台服务，本机没有正在执行的网络操作。';
   return {ok:result.ok,message,snapshot:publish(mode==='system'&&result.systemSnapshot?result.systemSnapshot:mode==='system'?lastSnapshot:engine.snapshot())};
 }
 
@@ -41,6 +42,7 @@ async function decrypt(bytes){
   return safeStorage.decryptString(bytes);
 }
 async function demo(){
+  if(!preview)throw new Error('此功能仅供内部隔离测试。');
   if(mode!=='simulation')throw new Error('仅可在模拟模式加载示例数据。');
   if(engine.accounts.length)throw new Error('当前已有账号配置。为避免覆盖，未加载示例账号。');
   await engine.upsert({label:'主用校园账号',username:'demo_student_a',password:'DEMO-ONLY-A-NOT-REAL'});
@@ -83,9 +85,8 @@ async function handle(method,body){
   if(method==='status')return status();
   if(method==='stopAll')return stopAll();
   if(method==='loadDemo')return demo();
-  if(method==='setScene'){if(mode!=='simulation')throw new Error('后台服务模式不支持模拟场景。');engine.transport.setScene(body.scene);engine.state.failures=0;await engine.check({readOnly:true,refreshStats:true});return status();}
+  if(method==='setScene'){if(!preview||mode!=='simulation')throw new Error('此功能仅供内部隔离测试。');engine.transport.setScene(body.scene);engine.state.failures=0;await engine.check({readOnly:true,refreshStats:true});return status();}
   if(method==='setMode'){
-    if(body.mode==='simulation'){mode='simulation';return status();}
     if(body.mode!=='system')throw new Error('运行模式无效');
     if(preview)throw new Error('隔离测试模式不允许连接或安装后台服务。');
     try{const value=observedService(await call('status'));if(!systemConnected)return {installationRequired:true,versionMismatch:true};mode='system';return publish(value);}
@@ -126,6 +127,7 @@ async function handle(method,body){
     if(result.canceled)return {cancelled:true};fs.writeFileSync(result.filePath,JSON.stringify(data,null,2),{mode:0o600});return {saved:true};
   }
   if(method==='openLogFolder'){await shell.openPath(mode==='system'?require('./platform.cjs').machineRoot():app.getPath('userData'));return {opened:true};}
+  requireDesktopAction(method,{mode,connected:systemConnected,preview});
   const value=mode==='system'?await call(method,body):await dispatch(engine,method,body);
   return publish(value);
 }
@@ -136,11 +138,11 @@ else{
   app.whenReady().then(async()=>{
     store=new DraftStore(app.getPath('userData'),{encrypt,decrypt,memory:preview});
     // Do not overwrite an existing vault if the OS cannot decrypt it.
-    const data=await store.load();
-    const transport=new SimulationTransport();let epoch=Date.now();let base=Date.now();
-    const now=()=>epoch+(Date.now()-base)*transport.timeScale;
+    const saved=await store.load();const data=preview?saved:draftData(saved);
+    const transport=preview?new SimulationTransport():{simulated:false};let epoch=Date.now();let base=Date.now();
+    const now=preview?()=>epoch+(Date.now()-base)*transport.timeScale:Date.now;
     engine=new Engine({transport,data,persist:value=>store.save(value),now});
-    engine.on('change',value=>{if(mode==='simulation')publish(value);});
+    engine.on('change',value=>{if(mode!=='system')publish(value);});
     ipcMain.handle('bkql:call',async(event,payload)=>{
       if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('请求来源不正确');
       if(!payload||typeof payload.method!=='string'||JSON.stringify(payload).length>65536)throw new Error('请求格式不正确');
@@ -153,6 +155,9 @@ else{
     ]));
     makeWindow();makeTray();
     if(preview)await demo();
+    else if(require('./platform.cjs').connectionInfo()){
+      try{const value=observedService(await call('status'));if(systemConnected){mode='system';publish(value);}else publish(engine.snapshot());}catch{publish(engine.snapshot());}
+    }
     setInterval(async()=>{if(mode==='system'||serviceSeen){try{const value=observedService(await call('status'));publish(mode==='system'?value:engine.snapshot());}catch{systemConnected=false;systemRunning=null;if(lastSnapshot)publish(mode==='system'?lastSnapshot:engine.snapshot());}}},3000).unref();
     powerMonitor.on('resume',()=>{if(mode==='simulation'&&engine.state.running)setTimeout(()=>engine.check(),3000);});
     app.on('activate',show);
