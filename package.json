@@ -19,6 +19,8 @@
     "appId": "local.bkql.campusconnect",
     "productName": "USTB Connect",
     "asar": false,
+    "afterPack": "scripts/prepare-macos-signing.cjs",
+    "afterAllArtifactBuild": "scripts/verify-macos-release.cjs",
     "toolsets": {
       "nsis": "1.2.1"
     },
@@ -46,7 +48,7 @@
         }
       ],
       "icon": "assets/app.icns",
-      "identity": null,
+      "identity": "-",
       "artifactName": "USTB-Connect-${version}-mac-arm64.${ext}"
     },
     "win": {

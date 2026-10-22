@@ -1,11 +1,14 @@
 'use strict';
 const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');const {execFileSync}=require('node:child_process');
 const R=require('resedit');const root=path.resolve(__dirname,'..');const pkg=require('../package.json');
+const {verifyArchive}=require('./verify-macos-release.cjs');
 const out=path.resolve(root,pkg.build.directories.output);const work=path.resolve(root,'..','work','ustb-connect-v1');
 fs.mkdirSync(work,{recursive:true});const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const macSignature=verifyArchive(path.join(out,`USTB-Connect-${pkg.version}-mac-arm64.zip`));
 function requireTrue(value,message){if(!value)throw new Error(message);}
 function files(directory){return fs.readdirSync(directory,{withFileTypes:true}).flatMap(x=>x.isDirectory()?files(path.join(directory,x.name)):[path.join(directory,x.name)]);}
-const sources=['src','renderer','service','assets'].flatMap(x=>files(path.join(root,x))).concat(['README.md','FLOW.md'].map(x=>path.join(root,x)));
+// Signing changes the generated Mach-O helper; validate it independently below instead of comparing its unsigned bytes.
+const sources=['src','renderer','service','assets'].flatMap(x=>files(path.join(root,x))).filter(x=>path.relative(root,x)!=='service/wifi-macos-arm64').concat(['README.md','FLOW.md'].map(x=>path.join(root,x)));
 const targets=[{name:'mac-arm64',directory:path.join(out,'mac-arm64',pkg.build.productName+'.app','Contents','Resources','app'),prefix:pkg.build.productName+'.app/Contents/Resources/app/'},{name:'win-x64',directory:path.join(out,'win-unpacked','resources','app'),prefix:'resources/app/'}];
 const report={version:pkg.version,checkedAt:new Date().toISOString(),timezone:'Asia/Shanghai',tests:{},packages:[],native:{},boundaries:{remoteAccess:false,realCampusAuthentication:false,realWifiJoin:false,systemBackendInstalled:false,systemStartupModified:false,nativeWindowsAcceptance:false,unattendedBootAcceptance:false}};
 const testFiles=fs.readdirSync(path.join(root,'tests')).filter(x=>x.endsWith('.test.cjs')).map(x=>path.join(root,'tests',x));
@@ -32,10 +35,10 @@ const ico=fs.readFileSync(path.join(root,'assets','app.ico'));const count=ico.re
 for(let n=0;n<count;n++){const entry=6+n*16;const length=ico.readUInt32LE(entry+8),offset=ico.readUInt32LE(entry+12);requireTrue(images.includes(sha(ico.subarray(offset,offset+length))),'Windows application icon differs');}
 const macho=fs.readFileSync(path.join(out,'mac-arm64','USTB Connect.app','Contents','MacOS','USTB Connect'));
 requireTrue(macho.readUInt32LE(4)===0x0100000c,'Mac executable is not ARM64');
-const helper=path.join(root,'service','wifi-macos-arm64');requireTrue(fs.readFileSync(helper).readUInt32LE(4)===0x0100000c,'Wi-Fi helper is not ARM64');
+const helper=path.join(out,'mac-arm64','USTB Connect.app','Contents','Resources','app','service','wifi-macos-arm64');requireTrue(fs.readFileSync(helper).readUInt32LE(4)===0x0100000c,'Wi-Fi helper is not ARM64');
 const dryRun=JSON.parse(execFileSync(helper,[],{input:JSON.stringify({action:'validateOnly',ssid:'No network test',security:'wpa2',password:'fake-test-password'}),encoding:'utf8'}));
 requireTrue(dryRun.ok&&dryRun.networkTouched===false,'Native input-only validation failed');
-report.native={macAppArch:'arm64',windowsAppArch:'x64',windowsIconSizes:count,macWifiHelperArch:'arm64',macWifiHelperInputOnly:dryRun,developerSigned:false};
+report.native={macAppArch:'arm64',windowsAppArch:'x64',windowsIconSizes:count,macWifiHelperArch:'arm64',macWifiHelperInputOnly:dryRun,developerSigned:false,macBundleSignatureValid:macSignature.signatureValid,macWifiHelperSignatureValid:macSignature.nativeHelperSignatureValid};
 const setup=path.join(out,`USTB-Connect-${pkg.version}-win-x64-setup.exe`);const setupBytes=fs.readFileSync(setup);requireTrue(setupBytes.subarray(0,2).toString()==='MZ','Installer missing');
 report.packages.push({platform:'win-x64-setup',file:path.basename(setup),bytes:setupBytes.length,sha256:sha(setupBytes)});
 const uiFile=path.join(work,'ui-checks.json');if(fs.existsSync(uiFile)){report.ui=JSON.parse(fs.readFileSync(uiFile,'utf8'));requireTrue(report.ui.checks.length>=22&&report.ui.errors.length===0,'UI checks not confirmed');}
