@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'">
+<title>北科校园联网</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><img src="../assets/icon.svg" alt="北科校园联网图标"><div><strong>USTB</strong><span>校园联网</span></div></div>
+    <div class="nav-caption">功能导航</div>
+    <nav aria-label="主导航">
+      <button class="nav-item" data-page="wifi" aria-label="无线网络"><span data-icon="wifi"></span>无线网络</button>
+      <button class="nav-item active" data-page="overview" aria-label="网络状态"><span data-icon="overview"></span>网络状态</button>
+      <button class="nav-item" data-page="accounts"><span data-icon="accounts"></span>校园网账号<span id="account-count" class="nav-count">0</span></button>
+      <button class="nav-item" data-page="settings" aria-label="重连设置"><span data-icon="settings"></span>重连设置</button>
+      <button class="nav-item" data-page="diagnostics" aria-label="运行日志"><span data-icon="logs"></span>运行日志</button>
+    </nav>
+    <div class="sidebar-bottom"><div class="quiet-status"><i></i><span id="sidebar-mode">模拟模式</span></div><p id="platform-label">正在读取平台…</p><small id="version-label">v1.0.0</small></div>
+  </aside>
+  <main>
+    <header class="topbar"><div class="breadcrumb">北科校园联网 <span>/</span> <b id="page-label">网络状态</b></div><div class="top-actions"><button class="button danger small" data-action="stop-all">停止全部监测</button><span class="mode-pill"><i></i><span id="mode-label">模拟模式</span></span><button class="text-button" id="switch-mode" data-action="switch-mode">连接系统后台<span data-icon="arrow"></span></button></div></header>
+    <div id="mode-banner" class="mode-banner"><span data-icon="flask"></span><div><strong>模拟模式</strong><span>所有状态和用量均为演示数据，不提交真实认证，不修改系统网络。</span></div><span class="banner-end">隔离测试</span></div>
+    <div id="view" class="content" aria-live="polite"></div>
+  </main>
+  <dialog id="account-dialog"><form id="account-form">
+    <div class="dialog-header"><div><span class="eyebrow">校园网账号</span><h2 id="account-dialog-title">添加校园网账号</h2></div><button type="button" class="icon-button" data-action="close-account" aria-label="关闭"><span data-icon="close"></span></button></div>
+    <p class="dialog-intro">账号正常时保持当前连接。明确失效或额度不足时，再按列表顺序使用备用账号。</p>
+    <label class="field"><span>账号备注</span><input name="label" maxlength="40" placeholder="例如：主用账号、备用账号"></label>
+    <label class="field"><span>校园网账号 <em>*</em></span><input name="username" maxlength="100" required autocomplete="off" spellcheck="false" placeholder="请输入校园网账号"></label>
+    <label class="field"><span>校园网密码 <em id="password-required">*</em></span><div class="password-wrap"><input name="password" type="password" maxlength="512" autocomplete="new-password" placeholder="请输入校园网密码"><button type="button" class="icon-button" data-action="reveal-password" aria-label="显示本次输入的密码"><span data-icon="eye"></span></button></div></label>
+    <label class="check-row"><input name="enabled" type="checkbox" checked><span>启用此账号，允许作为重连候选</span></label>
+    <div class="inline-note"><span data-icon="lock"></span><span id="credential-note">密码保存在系统安全存储中，不写入日志或诊断导出。</span></div>
+    <p class="form-error" id="account-error" role="alert"></p>
+    <div class="dialog-footer"><button type="button" class="button secondary" data-action="close-account">取消</button><button type="submit" class="button primary">保存账号</button></div>
+  </form></dialog>
+  <dialog id="confirm-dialog"><div class="confirm-body"></div></dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body></html>

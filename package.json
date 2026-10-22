@@ -1,0 +1,86 @@
+{
+  "name": "bkql-campus-connect",
+  "version": "1.0.0",
+  "private": true,
+  "description": "USTB campus network connection manager",
+  "author": "USTB Connect",
+  "license": "UNLICENSED",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "preview": "electron . --preview",
+    "test": "node --test tests/*.test.cjs",
+    "icons": "node scripts/icons.cjs",
+    "package": "electron-builder --publish never",
+    "native:mac": "node scripts/native-macos.cjs",
+    "prepackage": "node scripts/native-macos.cjs"
+  },
+  "build": {
+    "appId": "local.bkql.campusconnect",
+    "productName": "USTB Connect",
+    "asar": false,
+    "toolsets": {
+      "nsis": "1.2.1"
+    },
+    "directories": {
+      "output": "../outputs/USTB-Connect-v1.0.0",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**",
+      "renderer/**",
+      "service/**",
+      "assets/**",
+      "package.json",
+      "README.md",
+      "FLOW.md"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/app.icns",
+      "identity": null,
+      "artifactName": "USTB-Connect-${version}-mac-arm64.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/app.ico",
+      "signAndEditExecutable": true,
+      "signExecutable": false,
+      "artifactName": "USTB-Connect-${version}-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "北科校园联网",
+      "artifactName": "USTB-Connect-${version}-win-x64-setup.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3",
+    "sharp": "0.35.5"
+  }
+}
