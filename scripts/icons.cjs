@@ -14,8 +14,10 @@ async function main(){
   await sharp(template).resize(16,16).withMetadata({density:72}).png().toFile(path.join(assets,'trayTemplate.png'));
   await sharp(template).resize(32,32).withMetadata({density:144}).png().toFile(path.join(assets,'trayTemplate@2x.png'));
   const chunks=[];
+  // macOS uses an approximately 824 px coloured shape on a 1024 px transparent canvas.
+  const macIcon=await sharp(svg).resize(872,872).extend({top:76,bottom:76,left:76,right:76,background:{r:0,g:0,b:0,alpha:0}}).png().toBuffer();
   for(const [type,size] of [['icp4',16],['icp5',32],['icp6',64],['ic07',128],['ic08',256],['ic09',512],['ic10',1024]]){
-    const image=await sharp(svg).resize(size,size).png().toBuffer();const chunk=Buffer.alloc(8);
+    const image=await sharp(macIcon).resize(size,size).png().toBuffer();const chunk=Buffer.alloc(8);
     chunk.write(type,0,4,'ascii');chunk.writeUInt32BE(image.length+8,4);chunks.push(chunk,image);
   }
   const icns=Buffer.alloc(8);icns.write('icns');icns.writeUInt32BE(8+chunks.reduce((n,b)=>n+b.length,0),4);

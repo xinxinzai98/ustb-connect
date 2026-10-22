@@ -5,6 +5,7 @@ const {Engine,SimulationTransport}=require('./engine.cjs');
 const {DraftStore}=require('./store.cjs');const {dispatch,call,METHODS,stopMonitoring}=require('./control.cjs');
 const installer=require('./installer.cjs');
 const {publicError,STATUSES}=require('./model.cjs');
+const {trayInformation}=require('./tray.cjs');
 
 const preview=process.argv.includes('--preview')||process.env.BKQL_UI_TEST==='1';
 if(preview){
@@ -63,12 +64,18 @@ function makeTray(){
   if(process.platform==='darwin')icon.setTemplateImage(true);
   trayMetrics={size:icon.getSize(),scales:icon.getScaleFactors(),template:icon.isTemplateImage()};
   tray=new Tray(icon);tray.setToolTip('北科校园联网');
-  tray.setContextMenu(Menu.buildFromTemplate([
+  const actions=[
     {label:'打开主窗口',click:show},
     {label:'停止全部监测',click:async()=>{try{const result=await stopAll();await dialog.showMessageBox({type:result.ok?'info':'warning',title:'停止监测',message:result.message});}catch{dialog.showErrorBox('停止状态未确认','无法确认监测已停止。请使用桌面停止入口或检查后台服务。');}}},
     {type:'separator'},
     {label:'退出界面（后台服务继续运行）',click:()=>{quitting=true;app.quit();}},
-  ]));tray.on('double-click',show);
+  ];
+  if(process.platform==='darwin'){
+    let menu;
+    const popup=()=>{const snapshot=lastSnapshot||presentation(engine.snapshot());menu=Menu.buildFromTemplate([...trayInformation(snapshot).map(label=>({label,enabled:false})),{type:'separator'},...actions]);tray.popUpContextMenu(menu);};
+    tray.on('click',popup);tray.on('right-click',popup);
+  }else tray.setContextMenu(Menu.buildFromTemplate(actions));
+  tray.on('double-click',show);
 }
 
 async function handle(method,body){
@@ -144,7 +151,6 @@ else{
       {label:'编辑',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
       {label:'窗口',submenu:[{role:'minimize'},{label:'显示主窗口',click:show}]}
     ]));
-    if(process.platform==='darwin')app.dock?.setIcon(path.join(assets,'app.png'));
     makeWindow();makeTray();
     if(preview)await demo();
     setInterval(async()=>{if(mode==='system'||serviceSeen){try{const value=observedService(await call('status'));publish(mode==='system'?value:engine.snapshot());}catch{systemConnected=false;systemRunning=null;if(lastSnapshot)publish(mode==='system'?lastSnapshot:engine.snapshot());}}},3000).unref();
